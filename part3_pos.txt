@@ -8,8 +8,6 @@ Julia Julia PROPN NNP dobj
 . . PUNCT . punct
 Translated: None
 
-Angus angus NOUN NN nsubj
-loves love VERB VBZ ROOT
 a a DET DT det
 dog dog NOUN NN dobj
 who who PRON WP nsubj
