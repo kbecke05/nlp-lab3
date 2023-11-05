@@ -1,0 +1,59 @@
+Angus angus NOUN NN nsubj
+likes like VERB VBZ ROOT
+Cyril Cyril PROPN NNP nsubj
+and and CCONJ CC cc
+Irene Irene PROPN NNP conj
+hates hate VERB VBZ ccomp
+Cyril Cyril PROPN NNP dobj
+. . PUNCT . punct
+Translated: None
+
+Tofu Tofu PROPN NNP nsubj
+is be AUX VBZ ROOT
+taller tall ADJ JJR acomp
+than than ADP IN prep
+Bertie Bertie PROPN NNP pobj
+. . PUNCT . punct
+Translated: None
+
+Bruce Bruce PROPN NNP nsubj
+loves love VERB VBZ ROOT
+himself himself PRON PRP dobj
+and and CCONJ CC cc
+Pat Pat PROPN NNP nsubj
+does do VERB VBZ conj
+too too ADV RB advmod
+. . PUNCT . punct
+Translated: None
+
+Cyril Cyril PROPN NNP nsubj
+saw see VERB VBD ROOT
+Bertie Bertie PROPN NNP dobj
+, , PUNCT , punct
+but but CCONJ CC cc
+Angus Angus PROPN NNP nsubj
+did do VERB VBD conj
+n't not PART RB neg
+. . PUNCT . punct
+Translated: None
+
+Cyril cyril NOUN NN nsubj
+is be AUX VBZ ROOT
+a a DET DT det
+four four NUM CD advmod
+- - PUNCT HYPH punct
+legged legged ADJ JJ amod
+friend friend NOUN NN attr
+. . PUNCT . punct
+Translated: None
+
+Tofu Tofu PROPN NNP nsubj
+and and CCONJ CC cc
+Olive Olive PROPN NNP conj
+are be AUX VBP ROOT
+near near ADP IN prep
+each each DET DT det
+other other ADJ JJ pobj
+. . PUNCT . punct
+Translated: None
+

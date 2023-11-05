@@ -1,0 +1,76 @@
+Angus angus NOUN NN nsubj
+likes like VERB VBZ ROOT
+someone someone PRON NN dobj
+and and CCONJ CC cc
+someone someone PRON NN nsubj
+likes like VERB VBZ conj
+Julia Julia PROPN NNP dobj
+. . PUNCT . punct
+Translated: None
+
+Angus angus NOUN NN nsubj
+loves love VERB VBZ ROOT
+a a DET DT det
+dog dog NOUN NN dobj
+who who PRON WP nsubj
+loves love VERB VBZ relcl
+him he PRON PRP dobj
+. . PUNCT . punct
+Translated: None
+
+Nobody nobody PRON NN nsubj
+smiles smile VERB VBZ ROOT
+at at ADP IN prep
+Pat Pat PROPN NNP pobj
+. . PUNCT . punct
+Translated: None
+
+Somebody somebody PRON NN compound
+coughs cough NOUN NNS ROOT
+and and CCONJ CC cc
+sneezes sneeze NOUN NNS conj
+. . PUNCT . punct
+Translated: None
+
+Nobody nobody PRON NN nsubj
+coughed cough VERB VBD ROOT
+or or CCONJ CC cc
+sneezed sneeze VERB VBN conj
+. . PUNCT . punct
+Translated: None
+
+Bruce Bruce PROPN NNP nsubj
+loves love VERB VBZ ROOT
+somebody somebody PRON NN dobj
+other other ADJ JJ amod
+than than ADP IN prep
+Bruce Bruce PROPN NNP pobj
+. . PUNCT . punct
+Translated: None
+
+Nobody nobody PRON NN nsubj
+other other ADJ JJ amod
+than than ADP IN prep
+Matthew Matthew PROPN NNP pobj
+loves love VERB VBZ ROOT
+Pat Pat PROPN NNP dobj
+. . PUNCT . punct
+Translated: None
+
+Cyril cyril NOUN NN nsubj
+likes like VERB VBZ ROOT
+everyone everyone PRON NN dobj
+except except SCONJ IN prep
+for for ADP IN prep
+Irene Irene PROPN NNP pobj
+. . PUNCT . punct
+Translated: None
+
+Exactly exactly ADV RB advmod
+one one NUM CD nummod
+person person NOUN NN nsubj
+is be AUX VBZ ROOT
+asleep asleep ADJ JJ acomp
+. . PUNCT . punct
+Translated: None
+
