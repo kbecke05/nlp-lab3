@@ -1,11 +1,14 @@
 import argparse
 import spacy
 import nltk
+import random
 from spacy import displacy
 from nltk import load_parser
 from nltk.corpus import wordnet
 import spacy_transformers
 from spacy.matcher import PhraseMatcher
+
+used_variables = []
 
 def main():
     parser = argparse.ArgumentParser()
@@ -21,7 +24,7 @@ def main():
                     original_line = line.strip()
                     word_list = preprocess(original_line, nlp)
                     #print(word_list)
-                    translated_line = translate_line(word_list, nlp)
+                    translated_line = translate_line(word_list)
                     print(f"Translated: {translated_line}\n")
         except FileNotFoundError:
             print(f"Error: File '{args.file}' not found.")
@@ -35,7 +38,7 @@ def main():
                 break
             word_list = preprocess(user_input, nlp)
             #print(word_list)
-            translated_line = translate_line(word_list, nlp)
+            translated_line = translate_line(word_list)
             print(f"Translated: {translated_line}")
 
 def preprocess(sentence, nlp):
@@ -55,17 +58,32 @@ def preprocess(sentence, nlp):
             else:
                 word_list.insert(idx+1, applied_noun) 
         elif lemma == "who":
+            word_list.insert(idx-1, ("if", "CCONJ"))
             word_list[idx] = get_antecedent(word_list, idx)
         elif lemma in ["he", "she", "her", "him", "herself", "himself"]:
             word_list[idx] = get_first_noun(word_list, idx)
     return word_list
 
-def translate_line(word_list, nlp):
+def translate_line(word_list):
+    used_variables = []
     verb_adj_count = 0
     adp_count = 0
     print(word_list)
+    for i, (lemma, pos) in enumerate(word_list):
+        if lemma == 'someone' or lemma == 'somebody':
+            return get_quantifier_loops(word_list, i, f'exist {get_variable()}.')
+        if lemma == 'nobody' or (lemma == 'no' and word_list[i+1][0] == 'one'):
+            return get_quantifier_loops(word_list, i, f'-exist {get_variable()}.')
+        if lemma == 'everyone':
+            return get_quantifier_loops(word_list, i, f'all {get_variable()}.')
+        # if lemma == 'exactly' and word_list[i+1][0] == 'one':
+        #     word_list[i] = ('x', 'NOUN')
+        #     return 'all x. ()'
+        # If “Exactly one” N AUX ADJ/VB:
+        # 		All x ( exists y. ADJ/VB(y) &  -exists z. (ADJ/VB((z) & -(z =y)) )
+
     # “except for”/”other than”, “each other”
-    matched_phrases = match_phrases(word_list, nlp)
+    matched_phrases = match_phrases(word_list)
     if matched_phrases: # one of the above phrases is in the sentence
         if matched_phrases[0] == "except for" or matched_phrases[0] == "other than":
             pass
@@ -77,7 +95,7 @@ def translate_line(word_list, nlp):
             N2_idx = word_list.index(N2)
             switched_nouns = cropped_word_list.copy()
             switched_nouns[N1_idx], switched_nouns[N2_idx] = switched_nouns[N2_idx], switched_nouns[N1_idx]
-            return translate_line(cropped_word_list, nlp) + " & " + translate_line(switched_nouns, nlp)
+            return translate_line(cropped_word_list) + " & " + translate_line(switched_nouns)
     final_string = ""
     # find number of verbs / adjs in sentence
     for (lemma, pos) in word_list:
@@ -137,12 +155,12 @@ def translate_line(word_list, nlp):
     elif verb_adj_count == 2: # look at conjunctions
         conj_map = {"but": "&", "and": "&", "or": "|", "if": "->"}
         conj = get_conjunction(word_list)
-        print("conj = " + str(conj))
         word = conj[0] # the word
         i = conj[2] #the index of the conj returned from get_conjunction()
-        return translate_line(word_list[:i], nlp) + " " + conj_map[word] + " " + translate_line(word_list[i+1:], nlp)
+        return translate_line(word_list[:i]) + " " + conj_map[word] + " " + translate_line(word_list[i+1:])
 
-def match_phrases(word_list, nlp):
+def match_phrases(word_list):
+    nlp = spacy.load("en_core_web_trf")
     phrases_to_match = ["except for", "other than", "each other"]
     matcher = PhraseMatcher(nlp.vocab)
     patterns = [nlp(phrase) for phrase in phrases_to_match]
@@ -160,11 +178,31 @@ def match_phrases(word_list, nlp):
     return final
     
 # find noun or pronoun before it
+def get_variable():
+    randomVar = chr(random.randint(ord('a'), ord('z')))
+    if randomVar not in used_variables:
+        used_variables.append(randomVar)
+        return randomVar
+    else:
+        return get_variable()        
+
+def get_quantifier_loops(word_list, i, quantifier):
+    word_list[i] = (quantifier[-2], 'NOUN')
+    #still need to translate anything before word and anything after
+    if get_antecedent(word_list, i) and get_subsequent(word_list,i):
+        return quantifier + translate_line(word_list[:i+1]) + translate_line(word_list[i+1:])
+    # if at end of chunk or entire sentence, finish translating the sentence in front
+    elif i == len(word_list)-1 or get_antecedent(word_list,i):
+        return quantifier + translate_line(word_list[:i+1])
+    # if at beginning of chunk or entire sentence, finish translating the sentence in back
+    elif i == 0 or get_subsequent(word_list, i):
+        return quantifier + translate_line(word_list[i:])
+
 def get_antecedent(word_list, idx):
     # go backwards from the idx until we find a noun and return it
     for i in range(idx - 1, -1, -1):
         lemma, pos = word_list[i]
-        if pos == "NOUN" or pos == "PROPN":
+        if pos == "NOUN" or pos == "PROPN" or pos == "PRON":
             return (lemma, pos)
     return None
 # find noun or pronoun after it
@@ -172,7 +210,7 @@ def get_subsequent(word_list, idx):
     # go forwards from the idx until we find a noun and return it
     for i in range(idx + 1, len(word_list)):
         lemma, pos = word_list[i]
-        if pos == "NOUN" or pos == "PROPN":
+        if pos == "NOUN" or pos == "PROPN" or pos == "PRON":
             return (lemma, pos)
     return None
 
@@ -191,11 +229,9 @@ def get_first_noun(word_list, idx):
     return None
 
 def get_conjunction(word_list):
-    print("in conj = "+ str(word_list))
     for i in range(0, len(word_list)):
         lemma, pos = word_list[i]
         if pos == "CCONJ":
-            print(lemma, pos)
             return (lemma, pos, i)
     return None
 
