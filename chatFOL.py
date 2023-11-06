@@ -5,8 +5,7 @@ from spacy import displacy
 from nltk import load_parser
 from nltk.corpus import wordnet
 import spacy_transformers
-# from spacy.matcher import PhraseMatcher
-# from nltk.stem import WordNetLemmatizer
+from spacy.matcher import PhraseMatcher
 
 def main():
     parser = argparse.ArgumentParser()
@@ -48,24 +47,46 @@ def preprocess(sentence, nlp):
     for idx, (lemma, pos) in enumerate(word_list):
         if lemma == "do":
             word_list[idx] = get_closest_verb(word_list, idx)[0]
-            if (idx+1 < len(word_list) and word_list[idx + 1][0] == "not"):
+            applied_noun = get_closest_verb(word_list, idx)[1]
+            if (idx+1 < len(word_list) and word_list[idx + 1][0] in ["not", "n't"]):
+                word_list[idx + 1] = ("not", word_list[idx + 1][1])
                 word_list[idx], word_list[idx+1] = word_list[idx + 1], word_list[idx]
-        elif lemma == "who" or lemma== "too":
+                word_list.insert(idx+2, applied_noun) 
+            else:
+                word_list.insert(idx+1, applied_noun) 
+        elif lemma == "who":
             word_list[idx] = get_antecedent(word_list, idx)
         elif lemma in ["he", "she", "her", "him", "herself", "himself"]:
             word_list[idx] = get_first_noun(word_list, idx)
     return word_list
 
 def translate_line(word_list, nlp):
-    count = 0
+    verb_adj_count = 0
+    adp_count = 0
     print(word_list)
-    # final_string = ""
+    # “except for”/”other than”, “each other”
+    matched_phrases = match_phrases(word_list, nlp)
+    if matched_phrases: # one of the above phrases is in the sentence
+        if matched_phrases[0] == "except for" or matched_phrases[0] == "other than":
+            pass
+        elif matched_phrases[0] == "each other":
+            cropped_word_list = word_list[:matched_phrases[2]-1]
+            N1 = get_first_noun(cropped_word_list, matched_phrases[1])
+            N2 = get_antecedent(cropped_word_list, matched_phrases[1])
+            N1_idx = word_list.index(N1)
+            N2_idx = word_list.index(N2)
+            switched_nouns = cropped_word_list.copy()
+            switched_nouns[N1_idx], switched_nouns[N2_idx] = switched_nouns[N2_idx], switched_nouns[N1_idx]
+            return translate_line(cropped_word_list, nlp) + " & " + translate_line(switched_nouns, nlp)
+    final_string = ""
     # find number of verbs / adjs in sentence
     for (lemma, pos) in word_list:
         if pos == 'VERB' or pos == 'ADJ':
-            count += 1
-    print("count = "+ str(count))
-    if count == 0: # no clear descriptor -> look into auxillaries
+            verb_adj_count += 1
+        if pos == "ADP":
+            adp_count +=1
+        
+    if verb_adj_count == 0 and adp_count == 0: # no clear descriptor -> look into auxillaries
         for i, (lemma, pos) in enumerate(word_list):
             if pos == 'AUX':
                 if lemma == 'be': # be, is, are
@@ -77,14 +98,19 @@ def translate_line(word_list, nlp):
                     for j in range(i, len(word_list)):
                         if word_list[j][1] == 'NOUN':
                             if N1:
-                                return f"{word_list[j][0]}({N1}, {N2})"
+                                final_string += f"{word_list[j][0]}({N1}, {N2})"
                             else:
-                                return f"{word_list[j][0]}({N2})"
-    elif count == 1:
-        i, verb = [(i, v) for i, (v, pos) in enumerate(word_list) if pos == 'VERB' or pos == 'ADJ'][0]
+                                final_string += f"{word_list[j][0]}({N2})"
+        return final_string
+    if verb_adj_count == 1 or adp_count == 1:
+        i, verb = [(i, v) for i, (v, pos) in enumerate(word_list) if pos == 'VERB' or pos == 'ADJ' or pos == "ADP"][0]
+        neg = False
         N1 = None
         N2 = None
         if i > 0: # if the verb is not the very first word
+            #check for negations
+            if word_list[i-1][0] == "not":
+                neg = True
             N2_pos = get_antecedent(word_list, i) # get noun in front of verb
             if N2_pos:
                 N2 = N2_pos[0]
@@ -97,23 +123,43 @@ def translate_line(word_list, nlp):
             N2 = get_subsequent(word_list, i)
             if N2:
                 N2 = N2[0]
+        if neg:
+            final_string += '- '
         if N1 and N2:
-            return f"{verb}({N1}, {N2})"
+            final_string += f"{verb}({N1}, {N2})"
         elif N1:
-            return f"{verb}({N1})"
+            final_string += f"{verb}({N1})"
         elif N2:
-            return f"{verb}({N2})"
+            final_string += f"{verb}({N2})"
+        return final_string
 
 
-    elif count == 2: # look at conjunctions
+    elif verb_adj_count == 2: # look at conjunctions
         conj_map = {"but": "&", "and": "&", "or": "|", "if": "->"}
         conj = get_conjunction(word_list)
+        print("conj = " + str(conj))
         word = conj[0] # the word
         i = conj[2] #the index of the conj returned from get_conjunction()
         return translate_line(word_list[:i], nlp) + " " + conj_map[word] + " " + translate_line(word_list[i+1:], nlp)
 
-    # return final_string
-
+def match_phrases(word_list, nlp):
+    phrases_to_match = ["except for", "other than", "each other"]
+    matcher = PhraseMatcher(nlp.vocab)
+    patterns = [nlp(phrase) for phrase in phrases_to_match]
+    matcher.add("Phrases", None, *patterns)
+    text_to_search = " ".join(word for word, _ in word_list)
+    doc = nlp(text_to_search)
+    matches = matcher(doc)
+    final = []
+    for match_id, start, end in matches:
+        matched_phrase = doc[start:end]
+        # print(f"Matched phrase: {matched_phrase.text} (Start: {start}, End: {end - 1})")
+        final.append(matched_phrase.text)
+        final.append(start)
+        final.append(end-1)
+    return final
+    
+# find noun or pronoun before it
 def get_antecedent(word_list, idx):
     # go backwards from the idx until we find a noun and return it
     for i in range(idx - 1, -1, -1):
@@ -121,7 +167,7 @@ def get_antecedent(word_list, idx):
         if pos == "NOUN" or pos == "PROPN":
             return (lemma, pos)
     return None
-
+# find noun or pronoun after it
 def get_subsequent(word_list, idx):
     # go forwards from the idx until we find a noun and return it
     for i in range(idx + 1, len(word_list)):
@@ -145,9 +191,11 @@ def get_first_noun(word_list, idx):
     return None
 
 def get_conjunction(word_list):
+    print("in conj = "+ str(word_list))
     for i in range(0, len(word_list)):
         lemma, pos = word_list[i]
         if pos == "CCONJ":
+            print(lemma, pos)
             return (lemma, pos, i)
     return None
 
