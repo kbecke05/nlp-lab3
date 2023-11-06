@@ -1,12 +1,15 @@
 import argparse
 import spacy
 import nltk
+import random
 from spacy import displacy
 from nltk import load_parser
 from nltk.corpus import wordnet
 import spacy_transformers
 # from spacy.matcher import PhraseMatcher
 # from nltk.stem import WordNetLemmatizer
+
+used_variables = []
 
 def main():
     parser = argparse.ArgumentParser()
@@ -22,7 +25,7 @@ def main():
                     original_line = line.strip()
                     word_list = preprocess(original_line, nlp)
                     #print(word_list)
-                    translated_line = translate_line(word_list, nlp)
+                    translated_line = translate_line(word_list)
                     print(f"Translated: {translated_line}\n")
         except FileNotFoundError:
             print(f"Error: File '{args.file}' not found.")
@@ -36,7 +39,7 @@ def main():
                 break
             word_list = preprocess(user_input, nlp)
             #print(word_list)
-            translated_line = translate_line(word_list, nlp)
+            translated_line = translate_line(word_list)
             print(f"Translated: {translated_line}")
 
 def preprocess(sentence, nlp):
@@ -56,28 +59,17 @@ def preprocess(sentence, nlp):
             word_list[idx] = get_first_noun(word_list, idx)
     return word_list
 
-def translate_line(word_list, nlp):
+def translate_line(word_list):
+    used_variables = []
     count = 0
     print(word_list)
     for i, (lemma, pos) in enumerate(word_list):
         if lemma == 'someone' or lemma == 'somebody':
-            word_list[i] = ('x', 'NOUN')
-            if get_antecedent(word_list, i): # if at end of chunk, finish translating the sentence in front
-                return "exist x." + translate_line(word_list[:i+1], nlp)
-            else:  # if at front of chunk, finish translating the sentence in back
-                return "exist x." + translate_line(word_list[i:], nlp)
+            return get_quantifier_loops(word_list, i, f'exist {get_variable()}.')
         if lemma == 'nobody' or (lemma == 'no' and word_list[i+1][0] == 'one'):
-            word_list[i] = ('x', 'NOUN')
-            if get_antecedent(word_list, i): # if at end of chunk, finish translating the sentence in front
-                return "-exist x." + translate_line(word_list[:i+1], nlp)
-            else:  # if at front of chunk, finish translating the sentence in back
-                return "-exist x." + translate_line(word_list[i:], nlp)
+            return get_quantifier_loops(word_list, i, f'-exist {get_variable()}.')
         if lemma == 'everyone':
-            word_list[i] = ('x', 'NOUN')
-            if get_antecedent(word_list, i): # if at end of chunk, finish translating the sentence in front
-                return "all x." + translate_line(word_list[:i+1], nlp)
-            else:  # if at front of chunk, finish translating the sentence in back
-                return "all x." + translate_line(word_list[i:], nlp)
+            return get_quantifier_loops(word_list, i, f'all {get_variable()}.')
         # if lemma == 'exactly' and word_list[i+1][0] == 'one':
         #     word_list[i] = ('x', 'NOUN')
         #     return 'all x. ()'
@@ -128,14 +120,34 @@ def translate_line(word_list, nlp):
         elif N2:
             return f"{verb}({N2})"
 
-    elif count == 2: # look at conjunctions
-        conj_map = {"but": "&", "and": "&", "or": "|", "if": "->"}
-        conj = get_conjunction(word_list)
-        word = conj[0] # the word
-        i = conj[2] #the index of the conj returned from get_conjunction()
-        return translate_line(word_list[:i], nlp) + " " + conj_map[word] + " " + translate_line(word_list[i+1:], nlp)
+    # elif count == 2: # look at conjunctions
+    #     conj_map = {"but": "&", "and": "&", "or": "|", "if": "->"}
+    #     conj = get_conjunction(word_list)
+    #     word = conj[0] # the word
+    #     i = conj[2] #the index of the conj returned from get_conjunction()
+    #     return translate_line(word_list[:i], nlp) + " " + conj_map[word] + " " + translate_line(word_list[i+1:], nlp)
 
     # return final_string
+
+def get_variable():
+    randomVar = chr(random.randint(ord('a'), ord('z')))
+    if randomVar not in used_variables:
+        used_variables.append(randomVar)
+        return randomVar
+    else:
+        return get_variable()        
+
+def get_quantifier_loops(word_list, i, quantifier):
+    word_list[i] = (quantifier[-2], 'NOUN')
+    #still need to translate anything before word and anything after
+    if get_antecedent(word_list, i) and get_subsequent(word_list,i):
+        return quantifier + translate_line(word_list[:i+1]) + translate_line(word_list[i+1:])
+    # if at end of chunk or entire sentence, finish translating the sentence in front
+    elif i == len(word_list)-1 or get_antecedent(word_list,i):
+        return quantifier + translate_line(word_list[:i+1])
+    # if at beginning of chunk or entire sentence, finish translating the sentence in back
+    elif i == 0 or get_subsequent(word_list, i):
+        return quantifier + translate_line(word_list[i:])
 
 def get_antecedent(word_list, idx):
     # go backwards from the idx until we find a noun and return it
