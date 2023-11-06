@@ -59,7 +59,31 @@ def preprocess(sentence, nlp):
 def translate_line(word_list, nlp):
     count = 0
     print(word_list)
-    # final_string = ""
+    for i, (lemma, pos) in enumerate(word_list):
+        if lemma == 'someone' or lemma == 'somebody':
+            word_list[i] = ('x', 'NOUN')
+            if get_antecedent(word_list, i): # if at end of chunk, finish translating the sentence in front
+                return "exist x." + translate_line(word_list[:i+1], nlp)
+            else:  # if at front of chunk, finish translating the sentence in back
+                return "exist x." + translate_line(word_list[i:], nlp)
+        if lemma == 'nobody' or (lemma == 'no' and word_list[i+1][0] == 'one'):
+            word_list[i] = ('x', 'NOUN')
+            if get_antecedent(word_list, i): # if at end of chunk, finish translating the sentence in front
+                return "-exist x." + translate_line(word_list[:i+1], nlp)
+            else:  # if at front of chunk, finish translating the sentence in back
+                return "-exist x." + translate_line(word_list[i:], nlp)
+        if lemma == 'everyone':
+            word_list[i] = ('x', 'NOUN')
+            if get_antecedent(word_list, i): # if at end of chunk, finish translating the sentence in front
+                return "all x." + translate_line(word_list[:i+1], nlp)
+            else:  # if at front of chunk, finish translating the sentence in back
+                return "all x." + translate_line(word_list[i:], nlp)
+        # if lemma == 'exactly' and word_list[i+1][0] == 'one':
+        #     word_list[i] = ('x', 'NOUN')
+        #     return 'all x. ()'
+        # If “Exactly one” N AUX ADJ/VB:
+        # 		All x ( exists y. ADJ/VB(y) &  -exists z. (ADJ/VB((z) & -(z =y)) )
+
     # find number of verbs / adjs in sentence
     for (lemma, pos) in word_list:
         if pos == 'VERB' or pos == 'ADJ':
@@ -104,7 +128,6 @@ def translate_line(word_list, nlp):
         elif N2:
             return f"{verb}({N2})"
 
-
     elif count == 2: # look at conjunctions
         conj_map = {"but": "&", "and": "&", "or": "|", "if": "->"}
         conj = get_conjunction(word_list)
@@ -118,7 +141,7 @@ def get_antecedent(word_list, idx):
     # go backwards from the idx until we find a noun and return it
     for i in range(idx - 1, -1, -1):
         lemma, pos = word_list[i]
-        if pos == "NOUN" or pos == "PROPN":
+        if pos == "NOUN" or pos == "PROPN" or pos == "PRON":
             return (lemma, pos)
     return None
 
@@ -126,7 +149,7 @@ def get_subsequent(word_list, idx):
     # go forwards from the idx until we find a noun and return it
     for i in range(idx + 1, len(word_list)):
         lemma, pos = word_list[i]
-        if pos == "NOUN" or pos == "PROPN":
+        if pos == "NOUN" or pos == "PROPN" or pos == "PRON":
             return (lemma, pos)
     return None
 
