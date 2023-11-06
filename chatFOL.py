@@ -23,7 +23,7 @@ def main():
                 for line in lines:
                     original_line = line.strip()
                     word_list = preprocess(original_line, nlp)
-                    #print(word_list)
+                    print(word_list)
                     translated_line = translate_line(word_list)
                     print(f"Translated: {translated_line}\n")
         except FileNotFoundError:
@@ -58,8 +58,8 @@ def preprocess(sentence, nlp):
             else:
                 word_list.insert(idx+1, applied_noun) 
         elif lemma == "who":
-            word_list.insert(idx-1, ("if", "CCONJ"))
             word_list[idx] = get_antecedent(word_list, idx)
+            word_list.insert(idx, ("if", "CCONJ"))
         elif lemma in ["he", "she", "her", "him", "herself", "himself"]:
             word_list[idx] = get_first_noun(word_list, idx)
     return word_list
@@ -157,6 +157,8 @@ def translate_line(word_list):
         conj = get_conjunction(word_list)
         word = conj[0] # the word
         i = conj[2] #the index of the conj returned from get_conjunction()
+        if not get_subsequent(word_list, i): 
+            word_list.insert(i+1, get_antecedent(word_list, i))
         return translate_line(word_list[:i]) + " " + conj_map[word] + " " + translate_line(word_list[i+1:])
 
 def match_phrases(word_list):
